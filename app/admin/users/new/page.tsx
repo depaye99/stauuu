@@ -166,11 +166,18 @@ export default function NewUserPage() {
         body: JSON.stringify(formData)
       })
 
-      const result = await response.json()
+      let result
+      try {
+        result = await response.json()
+      } catch (parseError) {
+        console.error("❌ Erreur parsing JSON:", parseError)
+        throw new Error("Réponse serveur invalide")
+      }
+      
       console.log("📥 Réponse API:", { status: response.status, result })
 
-      if (!response.ok || !result.success) {
-        let errorMessage = result.error || "Erreur lors de la création"
+      if (!response.ok) {
+        let errorMessage = result?.error || "Erreur lors de la création"
 
         // Messages d'erreur plus spécifiques
         if (response.status === 401) {
@@ -181,7 +188,17 @@ export default function NewUserPage() {
           errorMessage = "Erreur serveur - veuillez réessayer"
         }
 
+        console.error("❌ Erreur API détaillée:", {
+          status: response.status,
+          error: result?.error,
+          details: result?.details
+        })
+
         throw new Error(errorMessage)
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || "Échec de la création")
       }
 
       toast({

@@ -100,151 +100,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Créer l'utilisateur dans auth.users d'abord
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    // Utiliser un client admin avec service key pour créer l'utilisateur
+    const adminClient = createAdminClient()
+    
+    // Créer l'utilisateur avec le client admin
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: validatedData.email,
       password: validatedData.password,
       email_confirm: true,
-      phone_confirm: true,
       user_metadata: {
         name: validatedData.name,
         role: validatedData.role
-      },
-      app_metadata: {
-        provider: 'email',
-        providers: ['email']
       }
     })
 
     if (authError) {
       console.error("❌ Erreur création auth:", authError)
-      
-      // Si l'erreur est "User not allowed", essayer avec signUp
-      if (authError.message?.includes("User not allowed") || authError.message?.includes("not allowed")) {
-        console.log("🔄 Tentative avec signUp...")
-        
-        // Créer un client admin avec service key
-        const adminClient = createAdminClient()
-        
-        // Essayer la création avec signUp
-        const { data: signUpData, error: signUpError } = await adminClient.auth.signUp({
-          email: validatedData.email,
-          password: validatedData.password,
-          options: {
-            data: {
-              name: validatedData.name,
-              role: validatedData.role
-            }
-          }
-        })
-        
-        if (signUpError) {
-          console.error("❌ Erreur signUp:", signUpError)
-          return NextResponse.json(
-            { success: false, error: "Erreur lors de la création du compte: " + signUpError.message },
-            { status: 500 }
-          )
-        }
-        
-        // Utiliser les données de signUp
-        if (signUpData.user) {
-          // Confirmer l'email automatiquement
-          try {
-            await adminClient.auth.admin.updateUserById(signUpData.user.id, {
-              email_confirm: true
-            })
-          } catch (updateError) {
-            console.warn("⚠️ Erreur confirmation email:", updateError)
-          }
-          
-          // Remplacer authData par signUpData
-          const authData = { user: signUpData.user }
-          
-          // Créer le profil utilisateur
-          const { data: newUser, error: profileError } = await supabase
-            .from("users")
-            .insert({
-              id: authData.user.id,
-              email: validatedData.email,
-              name: validatedData.name,
-              role: validatedData.role,
-              phone: validatedData.phone || null,
-              department: validatedData.department || null,
-              position: validatedData.position || null,
-              address: validatedData.address || null,
-              is_active: validatedData.is_active,
-              email_confirmed: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .select()
-            .single()
-
-          if (profileError) {
-            console.error("❌ Erreur création profil:", profileError)
-            
-            // Essayer de supprimer l'utilisateur auth créé
-            try {
-              await supabase.auth.admin.deleteUser(authData.user.id)
-            } catch (deleteError) {
-              console.error("❌ Erreur suppression utilisateur auth:", deleteError)
-            }
-            
-            return NextResponse.json(
-              { success: false, error: "Erreur lors de la création du profil: " + profileError.message },
-              { status: 500 }
-            )
-          }
-
-          // Si c'est un stagiaire, créer l'entrée dans la table stagiaires
-          if (validatedData.role === "stagiaire") {
-            try {
-              // Assigner automatiquement un tuteur
-              const { data: tuteurs } = await supabase
-                .from("users")
-                .select(`
-                  id, name,
-                  stagiaires_count:stagiaires(count)
-                `)
-                .eq("role", "tuteur")
-                .eq("is_active", true)
-
-              let tuteurId = null
-              if (tuteurs && tuteurs.length > 0) {
-                const tuteurAvecMoinsDeStages = tuteurs.reduce((prev, current) => {
-                  const prevCount = prev.stagiaires_count?.[0]?.count || 0
-                  const currentCount = current.stagiaires_count?.[0]?.count || 0
-                  return currentCount < prevCount ? current : prev
-                })
-                tuteurId = tuteurAvecMoinsDeStages.id
-              }
-
-              await supabase.from("stagiaires").insert({
-                user_id: authData.user.id,
-                entreprise: "Bridge Technologies Solutions",
-                poste: "Stagiaire",
-                tuteur_id: tuteurId,
-                statut: "actif",
-                date_debut: new Date().toISOString().split('T')[0],
-                date_fin: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              })
-
-              console.log("✅ Entrée stagiaire créée")
-            } catch (stagiaireError) {
-              console.warn("⚠️ Erreur création stagiaire:", stagiaireError)
-            }
-          }
-
-          return NextResponse.json({
-            success: true,
-            message: "Utilisateur créé avec succès",
-            data: newUser
-          })
-        }
-      }
-      
       return NextResponse.json(
         { success: false, error: "Erreur lors de la création du compte: " + authError.message },
         { status: 500 }
@@ -260,8 +131,8 @@ export async function POST(request: NextRequest) {
 
     console.log("✅ Utilisateur auth créé:", authData.user.id)
 
-    // Créer le profil utilisateur
-    const { data: newUser, error: profileError } = await supabase
+    // Créer le profil utilisateur avec le client admin
+    const { data: newUser, error: profileError } = await adminClient
       .from("users")
       .insert({
         id: authData.user.id,
@@ -285,7 +156,7 @@ export async function POST(request: NextRequest) {
       
       // Essayer de supprimer l'utilisateur auth créé
       try {
-        await supabase.auth.admin.deleteUser(authData.user.id)
+        await adminClient.auth.admin.deleteUser(authData.user.id)
       } catch (deleteError) {
         console.error("❌ Erreur suppression utilisateur auth:", deleteError)
       }
@@ -321,7 +192,7 @@ export async function POST(request: NextRequest) {
           tuteurId = tuteurAvecMoinsDeStages.id
         }
 
-        await supabase.from("stagiaires").insert({
+        await adminClient.from("stagiaires").insert({
           user_id: authData.user.id,
           entreprise: "Bridge Technologies Solutions",
           poste: "Stagiaire",
