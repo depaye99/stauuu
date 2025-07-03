@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "app",
+			"path": "."
+		},
+		{
+			"name": "gestion-stage",
+			"path": "../../../gestion-stage"
+		}
+	],
+	"settings": {}
+}
