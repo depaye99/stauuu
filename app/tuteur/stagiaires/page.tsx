@@ -66,8 +66,11 @@ export default function TuteurStagiairesPage() {
       const response = await fetch("/api/tuteur/stagiaires")
       const result = await response.json()
 
-      if (!response.ok) {
-        throw new Error(result.error || "Erreur lors du chargement")
+      if (!result.success) {
+        console.warn("⚠️ Erreur API:", result.error || result.message)
+        setStagiaires([])
+        setFilteredStagiaires([])
+        return
       }
 
       console.log("✅ Stagiaires chargés:", result.data?.length || 0)

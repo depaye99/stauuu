@@ -44,8 +44,8 @@ export async function GET() {
       .from("stagiaires")
       .select(`
         *,
-        user:users!stagiaires_user_id_fkey(id, name, email, phone, is_active),
-        tuteur:users!stagiaires_tuteur_id_fkey(id, name, email)
+        user:users!user_id(id, name, email, phone, is_active),
+        tuteur:users!tuteur_id(id, name, email)
       `)
       .order("created_at", { ascending: false })
 

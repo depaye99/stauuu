@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error("❌ Erreur récupération stagiaires:", error)
       return NextResponse.json({ 
-        error: "Erreur lors de la récupération des stagiaires" 
+        success: false,
+        error: "Erreur lors de la récupération des stagiaires",
+        data: []
       }, { status: 500 })
     }
 

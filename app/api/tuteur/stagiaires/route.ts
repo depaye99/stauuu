@@ -60,9 +60,10 @@ export async function GET() {
   } catch (error) {
     console.error("💥 Erreur API stagiaires tuteur:", error)
     return NextResponse.json({
-      success: true,
-      data: [],
-      message: "Erreur serveur interne"
+      success: false,
+      error: "Erreur serveur interne",
+      data: []
+    }, { status: 500 })ne"
     })
   }
 }

@@ -58,12 +58,16 @@ export default function RHDashboard() {
 
       if (stagiairesResponse.ok) {
         const stagiairesData = await stagiairesResponse.json()
-        setStagiaires(stagiairesData.data || [])
+        if (stagiairesData.success) {
+          setStagiaires(stagiairesData.data || [])
+        }
       }
 
       if (demandesResponse.ok) {
         const demandesData = await demandesResponse.json()
-        setDemandes(demandesData.data || [])
+        if (demandesData.success) {
+          setDemandes(demandesData.data || [])
+        }
       }
 
       // Charger les statistiques générales si les API spécifiques échouent

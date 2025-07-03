@@ -69,7 +69,16 @@ export default function RHNouveauStagiairePage() {
   const loadData = async () => {
     try {
       // Charger tous les utilisateurs qui ne sont pas encore stagiaires
-      const { data: allUsers } = await supabase.from("users").select("id, name, email").order("name")
+      const { data: allUsers, error: usersError } = await supabase
+        .from("users")
+        .select("id, name, email")
+        .eq("is_active", true)
+        .order("name")
+
+      if (usersError) {
+        console.error("Erreur chargement utilisateurs:", usersError)
+        return
+      }
 
       // Charger les stagiaires existants pour les exclure
       const { data: existingStagiaires } = await supabase.from("stagiaires").select("user_id")

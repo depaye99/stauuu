@@ -1,0 +1,17 @@
+   Generating static pages (43/87) 
+Error occurred prerendering page "/rh/documents". Read more: https://nextjs.org/docs/messages/prerender-error
+TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
+    at y (/vercel/path0/.next/server/app/rh/documents/page.js:1:2481)
+    at nL (/vercel/path0/node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:46773)
+    at nF (/vercel/path0/node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:48548)
+    at nq (/vercel/path0/node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:67434)
+    at nH (/vercel/path0/node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:65009)
+    at nU (/vercel/path0/node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:47125)
+    at nF (/vercel/path0/node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:48594)
+    at nF (/vercel/path0/node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:64360)
+    at nq (/vercel/path0/node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:67434)
+    at nH (/vercel/path0/node_modules/.pnpm/next@15.2.4_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:76:65009)
+Export encountered an error on /rh/documents/page: /rh/documents, exiting the build.
+ ⨯ Next.js build worker exited with code: 1 and signal: null
+ ELIFECYCLE  Command failed with exit code 1.
+Error: Command "pnpm run build" exited with 1
