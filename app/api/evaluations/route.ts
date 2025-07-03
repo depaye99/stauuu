@@ -53,10 +53,12 @@ export async function GET(request: NextRequest) {
 
     // Filtres selon les paramètres
     if (stagiaireId) {
+      console.log("🔍 Filtre par stagiaire:", stagiaireId)
       query = query.eq('stagiaire_id', stagiaireId)
     }
 
     if (tuteurId) {
+      console.log("🔍 Filtre par tuteur:", tuteurId)
       query = query.eq('evaluateur_id', tuteurId)
     }
 
@@ -83,7 +85,11 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('❌ Erreur get evaluations:', error)
       return NextResponse.json(
-        { error: 'Erreur lors de la récupération des évaluations' },
+        { 
+          success: false, 
+          error: 'Erreur lors de la récupération des évaluations',
+          details: error.message 
+        },
         { status: 500 }
       )
     }
