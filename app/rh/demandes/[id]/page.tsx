@@ -248,37 +248,56 @@ export default function RHDemandeDetailPage() {
 
                 {demande.documents && demande.documents.length > 0 && (
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Documents fournis</label>
-                    <div className="mt-2 space-y-2">
+                    <label className="text-sm font-medium text-gray-600 mb-2 block">Documents fournis</label>
+                    <div className="space-y-2">
                       {demande.documents.map((doc, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                        <div key={doc.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-blue-500" />
-                            <span className="text-sm font-medium">{doc.nom || doc}</span>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{doc.nom || `Document ${index + 1}`}</span>
+                              {doc.type && (
+                                <span className="text-xs text-gray-500">{doc.type}</span>
+                              )}
+                            </div>
                             {doc.taille && (
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-gray-500 ml-2">
                                 ({Math.round(doc.taille / 1024)} KB)
                               </span>
                             )}
                           </div>
                           <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => window.open(`/api/documents/${doc.id}/content`, '_blank')}
-                            >
-                              👁️ Voir
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
+                            {doc.id && (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => window.open(`/api/documents/${doc.id}/content`, '_blank')}
+                                >
+                                  👁️ Voir
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {(!demande.documents || demande.documents.length === 0) && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 mb-2 block">Documents fournis</label>
+                    <div className="text-center py-4 bg-gray-50 rounded-lg border border-dashed">
+                      <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">Aucun document fourni</p>
                     </div>
                   </div>
                 )}

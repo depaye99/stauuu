@@ -25,7 +25,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "ID demande invalide" }, { status: 400 })
     }
 
-    // Récupérer la demande avec les informations du stagiaire et documents
+    // Récupérer la demande avec les informations du stagiaire
     const { data: demande, error } = await supabase
       .from("demandes")
       .select(`
@@ -35,15 +35,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
           entreprise,
           poste,
           user:users!user_id(name, email)
-        ),
-        documents(
-          id,
-          nom,
-          type,
-          type_fichier,
-          taille,
-          chemin_fichier,
-          created_at
         )
       `)
       .eq("id", params.id)
@@ -57,7 +48,31 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       throw error
     }
 
-    return NextResponse.json({ success: true, data: demande })
+    // Récupérer les documents associés séparément
+    const { data: documents, error: documentsError } = await supabase
+      .from("documents")
+      .select(`
+        id,
+        nom,
+        type,
+        type_fichier,
+        taille,
+        chemin_fichier,
+        created_at
+      `)
+      .eq("demande_id", params.id)
+
+    if (documentsError) {
+      console.error("Erreur documents:", documentsError)
+    }
+
+    // Ajouter les documents à la demande
+    const demandeWithDocuments = {
+      ...demande,
+      documents: documents || []
+    }
+
+    return NextResponse.json({ success: true, data: demandeWithDocuments })
   } catch (error) {
     console.error("Erreur lors de la récupération de la demande:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })
