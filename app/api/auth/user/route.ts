@@ -1,51 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 
-export async function GET(request: NextRequest) {
+import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server"
+
+export async function GET() {
   try {
-    const supabase = createClient()
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Non autorisé' },
-        { status: 401 }
-      )
+    const supabase = await createClient()
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError) {
+      console.error("❌ Erreur session:", sessionError)
+      return NextResponse.json({ error: "Session error" }, { status: 401 })
     }
 
-    // Récupérer le profil utilisateur
+    if (!session?.user) {
+      console.log("❌ Pas de session")
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+    }
+
     const { data: profile, error: profileError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
+      .from("users")
+      .select("*")
+      .eq("id", session.user.id)
       .single()
 
     if (profileError) {
-      console.error('Erreur profil:', profileError)
-      return NextResponse.json(
-        { error: 'Profil utilisateur non trouvé' },
-        { status: 404 }
-      )
+      console.error("❌ Erreur profil:", profileError)
+      return NextResponse.json({ error: "Profile error" }, { status: 401 })
     }
 
-    return NextResponse.json({
-      id: profile.id,
-      email: profile.email,
-      name: profile.name,
-      role: profile.role,
-      is_active: profile.is_active,
-      phone: profile.phone,
-      address: profile.address,
-      department: profile.department,
-      position: profile.position
-    })
+    if (!profile) {
+      console.error("❌ Profil non trouvé")
+      return NextResponse.json({ error: "Profile not found" }, { status: 401 })
+    }
 
+    return NextResponse.json({ user: profile })
   } catch (error) {
-    console.error('Erreur auth user:', error)
-    return NextResponse.json(
-      { error: 'Erreur serveur' },
-      { status: 500 }
-    )
+    console.error("💥 Erreur récupération utilisateur:", error)
+    return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

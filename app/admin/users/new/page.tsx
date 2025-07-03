@@ -52,42 +52,30 @@ export default function NewUserPage() {
       try {
         console.log("🔍 Vérification authentification...")
 
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        // Utiliser l'API pour vérifier l'authentification
+        const response = await fetch("/api/auth/user", {
+          method: "GET",
+          credentials: "include"
+        })
 
-        if (sessionError) {
-          console.error("❌ Erreur session:", sessionError)
+        if (!response.ok) {
+          console.error("❌ Erreur API auth:", response.status)
           router.push("/auth/login")
           return
         }
 
-        if (!session?.user) {
-          console.log("❌ Pas de session")
+        const { user } = await response.json()
+
+        if (!user) {
+          console.log("❌ Pas d'utilisateur")
           router.push("/auth/login")
           return
         }
 
-        console.log("✅ Session trouvée:", session.user.email)
+        console.log("✅ Utilisateur trouvé:", user.email)
 
-        const { data: profile, error: profileError } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", session.user.id)
-          .single()
-
-        if (profileError) {
-          console.error("❌ Erreur profil:", profileError)
-          router.push("/auth/login")
-          return
-        }
-
-        if (!profile) {
-          console.error("❌ Profil non trouvé")
-          router.push("/auth/login")
-          return
-        }
-
-        if (profile.role !== "admin") {
-          console.error("❌ Rôle non admin:", profile.role)
+        if (user.role !== "admin") {
+          console.error("❌ Rôle non admin:", user.role)
           toast({
             title: "Accès refusé",
             description: "Vous devez être administrateur pour accéder à cette page",
@@ -97,7 +85,7 @@ export default function NewUserPage() {
           return
         }
 
-        if (!profile.is_active) {
+        if (!user.is_active) {
           console.error("❌ Compte inactif")
           toast({
             title: "Compte inactif",
@@ -109,7 +97,7 @@ export default function NewUserPage() {
         }
 
         console.log("✅ Authentification admin confirmée")
-        setUser(profile)
+        setUser(user)
         setLoading(false)
       } catch (error) {
         console.error("💥 Erreur auth:", error)
@@ -123,7 +111,7 @@ export default function NewUserPage() {
     }
 
     checkAuth()
-  }, [router, supabase, toast])
+  }, [router, toast])
 
   const validateForm = (): boolean => {
     const newErrors: Partial<UserFormData> = {}
