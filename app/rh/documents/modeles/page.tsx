@@ -32,50 +32,46 @@ export default function RHModelesPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) {
-        router.push("/auth/login")
-        return
-      }
+      try {
+        const response = await fetch("/api/auth/user", {
+          method: "GET",
+          credentials: "include"
+        })
 
-      const { data: profile } = await supabase.from("users").select("*").eq("id", session.user.id).single()
-      if (!profile || profile.role !== "rh") {
-        router.push("/auth/login")
-        return
-      }
+        if (!response.ok) {
+          router.push("/auth/login")
+          return
+        }
 
-      setUser(profile)
-      await loadTemplates()
-      setLoading(false)
+        const { user } = await response.json()
+
+        if (!user || user.role !== "rh") {
+          router.push("/auth/login")
+          return
+        }
+
+        setUser(user)
+        await loadTemplates()
+        setLoading(false)
+      } catch (error) {
+        console.error("💥 Erreur auth:", error)
+        router.push("/auth/login")
+      }
     }
 
     checkAuth()
-  }, [router, supabase])
+  }, [router])
 
   const loadTemplates = async () => {
     try {
-      // Pour le moment, utilisons des données fictives
-      const mockTemplates: Template[] = [
-        {
-          id: "1",
-          nom: "Convention de stage",
-          type: "convention",
-          description: "Modèle standard de convention de stage",
-          contenu: "Contenu du modèle...",
-          created_at: new Date().toISOString()
-        },
-        {
-          id: "2",
-          nom: "Attestation de stage",
-          type: "attestation",
-          description: "Modèle d'attestation de fin de stage",
-          contenu: "Contenu du modèle...",
-          created_at: new Date().toISOString()
-        }
-      ]
-      setTemplates(mockTemplates)
+      const response = await fetch('/api/templates')
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Erreur lors du chargement")
+      }
+
+      setTemplates(result.data || [])
     } catch (error) {
       console.error("Erreur lors du chargement des modèles:", error)
       toast({
@@ -88,6 +84,38 @@ export default function RHModelesPage() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("fr-FR")
+  }
+
+  const handleDelete = async (templateId: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce modèle ?")) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/templates/${templateId}`, {
+        method: "DELETE",
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Erreur lors de la suppression")
+      }
+
+      toast({
+        title: "Succès",
+        description: "Modèle supprimé avec succès",
+      })
+
+      await loadTemplates()
+    } catch (error: any) {
+      console.error("Erreur suppression modèle:", error)
+      toast({
+        title: "Erreur",
+        description: error.message || "Erreur lors de la suppression",
+        variant: "destructive",
+      })
+    }
   }
 
   if (loading) {
@@ -143,13 +171,25 @@ export default function RHModelesPage() {
                     <TableCell>{formatDate(template.created_at)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => router.push(`/rh/documents/modeles/${template.id}/edit`)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => window.open(`/api/templates/${template.id}/preview`, '_blank')}
+                        >
                           <Download className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDelete(template.id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

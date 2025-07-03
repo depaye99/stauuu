@@ -30,26 +30,34 @@ export default function RHUploadPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) {
-        router.push("/auth/login")
-        return
-      }
+      try {
+        const response = await fetch("/api/auth/user", {
+          method: "GET",
+          credentials: "include"
+        })
 
-      const { data: profile } = await supabase.from("users").select("*").eq("id", session.user.id).single()
-      if (!profile || profile.role !== "rh") {
-        router.push("/auth/login")
-        return
-      }
+        if (!response.ok) {
+          router.push("/auth/login")
+          return
+        }
 
-      setUser(profile)
-      setLoading(false)
+        const { user } = await response.json()
+
+        if (!user || user.role !== "rh") {
+          router.push("/auth/login")
+          return
+        }
+
+        setUser(user)
+        setLoading(false)
+      } catch (error) {
+        console.error("💥 Erreur auth:", error)
+        router.push("/auth/login")
+      }
     }
 
     checkAuth()
-  }, [router, supabase])
+  }, [router])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
