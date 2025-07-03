@@ -50,34 +50,80 @@ export default function NewUserPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        if (!session) {
+        console.log("🔍 Vérification authentification...")
+
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+        if (sessionError) {
+          console.error("❌ Erreur session:", sessionError)
           router.push("/auth/login")
           return
         }
 
-        const { data: profile } = await supabase
+        if (!session?.user) {
+          console.log("❌ Pas de session")
+          router.push("/auth/login")
+          return
+        }
+
+        console.log("✅ Session trouvée:", session.user.email)
+
+        const { data: profile, error: profileError } = await supabase
           .from("users")
           .select("*")
           .eq("id", session.user.id)
           .single()
 
-        if (!profile || profile.role !== "admin") {
+        if (profileError) {
+          console.error("❌ Erreur profil:", profileError)
+          router.push("/auth/login")
+          return
+        }
+
+        if (!profile) {
+          console.error("❌ Profil non trouvé")
+          router.push("/auth/login")
+          return
+        }
+
+        if (profile.role !== "admin") {
+          console.error("❌ Rôle non admin:", profile.role)
+          toast({
+            title: "Accès refusé",
+            description: "Vous devez être administrateur pour accéder à cette page",
+            variant: "destructive"
+          })
           router.push("/")
           return
         }
 
+        if (!profile.is_active) {
+          console.error("❌ Compte inactif")
+          toast({
+            title: "Compte inactif",
+            description: "Votre compte est désactivé",
+            variant: "destructive"
+          })
+          router.push("/")
+          return
+        }
+
+        console.log("✅ Authentification admin confirmée")
         setUser(profile)
         setLoading(false)
       } catch (error) {
-        console.error("Erreur auth:", error)
+        console.error("💥 Erreur auth:", error)
+        toast({
+          title: "Erreur",
+          description: "Erreur de vérification des permissions",
+          variant: "destructive"
+        })
         router.push("/auth/login")
       }
     }
 
     checkAuth()
-  }, [router, supabase])
+  }, [router, supabase, toast])
 
   const validateForm = (): boolean => {
     const newErrors: Partial<UserFormData> = {}
@@ -121,6 +167,8 @@ export default function NewUserPage() {
     setSaving(true)
 
     try {
+      console.log("🚀 Envoi des données utilisateur:", { ...formData, password: "[HIDDEN]" })
+
       // Créer l'utilisateur avec l'API
       const response = await fetch("/api/admin/users", {
         method: "POST",
@@ -131,9 +179,21 @@ export default function NewUserPage() {
       })
 
       const result = await response.json()
+      console.log("📥 Réponse API:", { status: response.status, result })
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || "Erreur lors de la création")
+        let errorMessage = result.error || "Erreur lors de la création"
+
+        // Messages d'erreur plus spécifiques
+        if (response.status === 401) {
+          errorMessage = "Non authentifié - veuillez vous reconnecter"
+        } else if (response.status === 403) {
+          errorMessage = "Accès refusé - permissions administrateur requises"
+        } else if (response.status === 500) {
+          errorMessage = "Erreur serveur - veuillez réessayer"
+        }
+
+        throw new Error(errorMessage)
       }
 
       toast({
@@ -143,7 +203,7 @@ export default function NewUserPage() {
 
       router.push("/admin/users")
     } catch (error: any) {
-      console.error("Erreur création utilisateur:", error)
+      console.error("❌ Erreur création utilisateur:", error)
       toast({
         title: "Erreur",
         description: error.message || "Impossible de créer l'utilisateur",
