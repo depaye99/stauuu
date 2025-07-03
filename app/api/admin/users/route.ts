@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server"
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
@@ -60,11 +59,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Créer l'utilisateur auth avec les privilèges admin
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    // Créer l'utilisateur avec un client admin
+    const adminSupabase = createRouteHandlerClient({ cookies })
+
+    const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
       email: validatedData.email,
       password: validatedData.password,
-      email_confirm: true, // Confirmer automatiquement l'email
+      email_confirm: true,
       user_metadata: {
         name: validatedData.name,
         role: validatedData.role,

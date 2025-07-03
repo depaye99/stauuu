@@ -90,7 +90,7 @@ export default function EditStagiairePage() {
         poste: stagiaireInfo.poste || "",
         date_debut: stagiaireInfo.date_debut ? stagiaireInfo.date_debut.split("T")[0] : "",
         date_fin: stagiaireInfo.date_fin ? stagiaireInfo.date_fin.split("T")[0] : "",
-        tuteur_id: stagiaireInfo.tuteur_id || "none", // Updated to have a non-empty string default value
+        tuteur_id: stagiaireInfo.tuteur_id || "none",
         statut: stagiaireInfo.statut || "actif",
         commentaires: stagiaireInfo.commentaires || "",
       })
@@ -109,10 +109,16 @@ export default function EditStagiairePage() {
   const handleSave = async () => {
     setSaving(true)
     try {
+      // Préparer les données en gérant le cas "none" pour tuteur_id
+      const dataToSend = {
+        ...formData,
+        tuteur_id: formData.tuteur_id === "none" ? null : formData.tuteur_id
+      }
+
       const response = await fetch(`/api/admin/stagiaires/${params.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       })
 
       const data = await response.json()

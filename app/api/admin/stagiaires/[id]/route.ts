@@ -29,10 +29,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const { data: stagiaire, error } = await supabase
       .from("stagiaires")
       .select(`
-    *,
-    user:users!user_id(id, name, email, phone),
-    tuteur:users!tuteur_id(id, name, email)
-  `)
+        *,
+        users!stagiaires_user_id_fkey(id, name, email, phone),
+        tuteur:users!stagiaires_tuteur_id_fkey(id, name, email)
+      `)
       .eq("id", params.id)
       .single()
 
@@ -92,11 +92,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       updated_at: new Date().toISOString(),
     }
 
-    // Ajouter tuteur_id seulement s'il est fourni
-    if (tuteur_id) {
-      updateData.tuteur_id = tuteur_id
-    } else {
+    // Gérer tuteur_id correctement
+    if (tuteur_id === null || tuteur_id === "none" || tuteur_id === "") {
       updateData.tuteur_id = null
+    } else {
+      updateData.tuteur_id = tuteur_id
     }
 
     const { data: stagiaire, error } = await supabase
@@ -105,8 +105,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       .eq("id", params.id)
       .select(`
         *,
-        users!user_id(id, name, email, phone),
-        tuteur:users!tuteur_id(id, name, email)
+        users!stagiaires_user_id_fkey(id, name, email, phone),
+        tuteur:users!stagiaires_tuteur_id_fkey(id, name, email)
       `)
       .single()
 

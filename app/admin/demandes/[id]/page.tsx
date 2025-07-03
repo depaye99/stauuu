@@ -47,9 +47,12 @@ export default function DemandeDetailPage() {
   const [updating, setUpdating] = useState(false)
   const [statut, setStatut] = useState("")
   const [commentaireReponse, setCommentaireReponse] = useState("")
+  const [documents, setDocuments] = useState<any[]>([])
+  const [loadingDocuments, setLoadingDocuments] = useState(false)
 
   useEffect(() => {
     loadDemande()
+    loadDocuments()
   }, [params.id])
 
   const loadDemande = async () => {
@@ -73,6 +76,47 @@ export default function DemandeDetailPage() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadDocuments = async () => {
+    setLoadingDocuments(true)
+    try {
+      const response = await fetch(`/api/demandes/${params.id}/documents`)
+      const data = await response.json()
+
+      if (response.ok) {
+        setDocuments(data.documents || [])
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des documents:", error)
+    } finally {
+      setLoadingDocuments(false)
+    }
+  }
+
+  const handleDownloadDocument = async (documentId: string, fileName: string) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/download`)
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = fileName
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      } else {
+        throw new Error("Erreur lors du téléchargement")
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de télécharger le document",
+        variant: "destructive",
+      })
     }
   }
 
@@ -293,30 +337,52 @@ export default function DemandeDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Documents requis */}
-      {demande.documents_requis && demande.documents_requis.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Download className="h-5 w-5" />
-              Documents fournis
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Documents fournis */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            Documents fournis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingDocuments ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Chargement des documents...</span>
+            </div>
+          ) : documents.length > 0 ? (
             <div className="grid gap-2">
-              {demande.documents_requis.map((doc, index) => (
-                <div key={index} className="flex items-center justify-between p-2 border rounded">
-                  <span>{doc}</span>
-                  <Button variant="outline" size="sm">
+              {documents.map((doc, index) => (
+                <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex-1">
+                    <p className="font-medium">{doc.nom}</p>
+                    <p className="text-sm text-gray-500">
+                      {doc.type_fichier} - {doc.taille ? Math.round(doc.taille / 1024) + ' KB' : 'Taille inconnue'}
+                    </p>
+                    {doc.type_document_demande && (
+                      <p className="text-xs text-blue-600">{doc.type_document_demande}</p>
+                    )}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleDownloadDocument(doc.id, doc.nom)}
+                  >
                     <Download className="h-4 w-4 mr-2" />
                     Télécharger
                   </Button>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="text-center py-6">
+              <Download className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-500">Aucun document fourni</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Traitement de la demande */}
       <Card>
