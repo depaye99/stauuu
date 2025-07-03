@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -7,13 +8,17 @@ import { Button } from "@/components/ui/button"
 import { Header } from "@/components/layout/header"
 import { FileText, Calendar, UserPlus, ClipboardList } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 
 export default function RHDashboard() {
   const [user, setUser] = useState<any>(null)
   const [stats, setStats] = useState<any>(null)
+  const [stagiaires, setStagiaires] = useState<any[]>([])
+  const [demandes, setDemandes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
+  const { toast } = useToast()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -65,19 +70,32 @@ export default function RHDashboard() {
       if (statsResponse.ok) {
         const statsData = await statsResponse.json()
         if (statsData.success) {
+          setStats({
+            stagiaires_total: statsData.data.stagiaires?.total || stagiaires.length,
+            demandes_total: statsData.data.demandes?.total || demandes.length,
+            demandes_en_attente: statsData.data.demandes?.en_attente || demandes.filter(d => d.statut === 'en_attente').length
+          })
+          
           if (!stagiaires.length) {
-            setStagiaires(Array(statsData.data.stagiaires.total).fill(null).map((_, i) => ({ 
+            setStagiaires(Array(statsData.data.stagiaires?.total || 0).fill(null).map((_, i) => ({ 
               id: i, 
-              statut: i < statsData.data.stagiaires.actif ? 'actif' : 'termine' 
+              statut: i < (statsData.data.stagiaires?.actif || 0) ? 'actif' : 'termine' 
             })))
           }
           if (!demandes.length) {
-            setDemandes(Array(statsData.data.demandes.total).fill(null).map((_, i) => ({ 
+            setDemandes(Array(statsData.data.demandes?.total || 0).fill(null).map((_, i) => ({ 
               id: i, 
-              statut: i < statsData.data.demandes.en_attente ? 'en_attente' : 'approuvee' 
+              statut: i < (statsData.data.demandes?.en_attente || 0) ? 'en_attente' : 'approuvee' 
             })))
           }
         }
+      } else {
+        // Fallback avec les données locales
+        setStats({
+          stagiaires_total: stagiaires.length,
+          demandes_total: demandes.length,
+          demandes_en_attente: demandes.filter(d => d.statut === 'en_attente').length
+        })
       }
 
       console.log("✅ Statistiques RH chargées")
