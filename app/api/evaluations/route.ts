@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         { 
           success: false, 
           error: 'Erreur lors de la récupération des évaluations',
-          details: error.message 
+          evaluations: []
         },
         { status: 500 }
       )
@@ -98,7 +98,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      evaluations: data || []
+      evaluations: data || [],
+      total: data?.length || 0
     })
 
   } catch (error) {

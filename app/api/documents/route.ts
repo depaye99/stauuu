@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -143,7 +142,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     console.log("🔍 API Documents GET - Début")
-    
+
     const supabase = await createClient()
 
     const { data: { session }, error: authError } = await supabase.auth.getSession()
@@ -208,7 +207,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: documents || []
+      documents: documents || [],
+      total: documents?.length || 0
     })
 
   } catch (error: any) {

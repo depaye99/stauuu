@@ -50,62 +50,28 @@ export default function NewUserPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log("🔍 Vérification authentification...")
-
-        // Utiliser l'API pour vérifier l'authentification
-        const response = await fetch("/api/auth/user", {
-          method: "GET",
-          credentials: "include"
-        })
-
+        const response = await fetch("/api/auth/user")
+        
         if (!response.ok) {
-          console.error("❌ Erreur API auth:", response.status)
           router.push("/auth/login")
           return
         }
 
         const { user } = await response.json()
 
-        if (!user) {
-          console.log("❌ Pas d'utilisateur")
-          router.push("/auth/login")
-          return
-        }
-
-        console.log("✅ Utilisateur trouvé:", user.email)
-
-        if (user.role !== "admin") {
-          console.error("❌ Rôle non admin:", user.role)
+        if (!user || user.role !== "admin" || !user.is_active) {
           toast({
             title: "Accès refusé",
-            description: "Vous devez être administrateur pour accéder à cette page",
+            description: "Accès administrateur requis",
             variant: "destructive"
           })
           router.push("/")
           return
         }
 
-        if (!user.is_active) {
-          console.error("❌ Compte inactif")
-          toast({
-            title: "Compte inactif",
-            description: "Votre compte est désactivé",
-            variant: "destructive"
-          })
-          router.push("/")
-          return
-        }
-
-        console.log("✅ Authentification admin confirmée")
         setUser(user)
         setLoading(false)
       } catch (error) {
-        console.error("💥 Erreur auth:", error)
-        toast({
-          title: "Erreur",
-          description: "Erreur de vérification des permissions",
-          variant: "destructive"
-        })
         router.push("/auth/login")
       }
     }

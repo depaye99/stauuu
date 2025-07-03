@@ -34,9 +34,10 @@ export default function RHDocumentsPage() {
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const router = useRouter()
+  const [router] = useRouter()
   const supabase = createClient()
   const { toast } = useToast()
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -84,15 +85,20 @@ export default function RHDocumentsPage() {
 
       console.log("📋 Réponse documents:", response.status)
 
-      const result = await response.json()
-      console.log("📋 Données reçues:", result)
+      const data = await response.json()
 
       if (!response.ok) {
-        console.error("❌ Erreur API documents:", result.error)
-        throw new Error(result.error || "Erreur lors du chargement")
+        throw new Error(data.error || "Erreur lors du chargement")
       }
 
-      const documentsData = result.data || []
+      if (data.success) {
+        setDocuments(data.documents || [])
+      } else {
+        setDocuments([])
+        setError(data.error || "Erreur lors du chargement")
+      }
+
+      const documentsData = data.data || []
       console.log("✅ Documents chargés:", documentsData.length)
 
       setDocuments(documentsData)

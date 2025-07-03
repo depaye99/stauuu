@@ -85,11 +85,14 @@ export default function DemandeDetailPage() {
       const response = await fetch(`/api/demandes/${params.id}/documents`)
       const data = await response.json()
 
-      if (response.ok) {
+      if (response.ok && data.success) {
         setDocuments(data.documents || [])
+      } else {
+        setDocuments([])
       }
     } catch (error) {
       console.error("Erreur lors du chargement des documents:", error)
+      setDocuments([])
     } finally {
       setLoadingDocuments(false)
     }

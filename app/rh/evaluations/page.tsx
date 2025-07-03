@@ -55,7 +55,13 @@ export default function RHEvaluationsPage() {
     if (user) {
       fetchEvaluations()
     }
-  }, [user, stagiaireFilter])
+  }, [user])
+
+  useEffect(() => {
+    if (user && stagiaireFilter) {
+      fetchEvaluations()
+    }
+  }, [stagiaireFilter])
 
   const fetchUser = async () => {
     try {
@@ -93,11 +99,15 @@ export default function RHEvaluationsPage() {
       const data = await response.json()
       console.log("✅ Données évaluations reçues:", data)
 
-      if (!data.success) {
+      // Gérer les réponses même en cas d'erreur serveur
+      if (data.success === false && data.evaluations) {
+        setEvaluations(data.evaluations)
+        setError(data.error || "Erreur lors du chargement")
+      } else if (data.success) {
+        setEvaluations(data.evaluations || [])
+      } else {
         throw new Error(data.error || "Erreur lors de la récupération")
       }
-
-      setEvaluations(data.evaluations || [])
     } catch (error) {
       console.error("❌ Erreur fetchEvaluations:", error)
       setError(error instanceof Error ? error.message : "Erreur lors du chargement des évaluations")

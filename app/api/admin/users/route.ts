@@ -20,66 +20,36 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     
-    // Vérifier que l'utilisateur actuel est admin
+    // Vérifier l'authentification
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
-    if (sessionError) {
-      console.error("❌ Erreur de session:", sessionError)
-      return NextResponse.json(
-        { success: false, error: "Erreur de session" },
-        { status: 401 }
-      )
-    }
-
-    if (!session?.user) {
-      console.error("❌ Pas de session ou d'utilisateur")
+    if (sessionError || !session?.user) {
       return NextResponse.json(
         { success: false, error: "Non authentifié" },
         { status: 401 }
       )
     }
 
-    console.log("✅ Session trouvée pour:", session.user.email, "ID:", session.user.id)
-
+    // Vérifier les permissions admin
     const { data: currentUser, error: userError } = await supabase
       .from("users")
       .select("role, is_active")
       .eq("id", session.user.id)
       .single()
 
-    if (userError) {
-      console.error("❌ Erreur récupération utilisateur:", userError)
-      return NextResponse.json(
-        { success: false, error: "Erreur lors de la vérification des permissions" },
-        { status: 500 }
-      )
-    }
-
-    if (!currentUser) {
-      console.error("❌ Utilisateur non trouvé dans la base")
+    if (userError || !currentUser) {
       return NextResponse.json(
         { success: false, error: "Utilisateur non trouvé" },
         { status: 404 }
       )
     }
 
-    if (currentUser.role !== "admin") {
-      console.error("❌ Utilisateur non admin:", currentUser.role)
+    if (currentUser.role !== "admin" || !currentUser.is_active) {
       return NextResponse.json(
-        { success: false, error: "Accès non autorisé - rôle admin requis" },
+        { success: false, error: "Accès non autorisé" },
         { status: 403 }
       )
     }
-
-    if (!currentUser.is_active) {
-      console.error("❌ Compte admin inactif")
-      return NextResponse.json(
-        { success: false, error: "Compte inactif" },
-        { status: 403 }
-      )
-    }
-
-    console.log("✅ Utilisateur admin confirmé:", currentUser.role)
     
     const body = await request.json()
     console.log("📝 Données reçues:", { ...body, password: "[HIDDEN]" })
