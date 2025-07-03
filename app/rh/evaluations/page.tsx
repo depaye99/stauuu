@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, FileText, Search, Filter, Eye, Edit, Trash2, Plus } from "lucide-react"
-import Header from "@/components/layout/header"
+import { Header } from "@/components/layout/header"
 
 interface Evaluation {
   id: string
