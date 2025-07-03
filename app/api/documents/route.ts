@@ -142,25 +142,31 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    console.log("🔍 API Documents GET - Début")
+    
     const supabase = await createClient()
 
     const { data: { session }, error: authError } = await supabase.auth.getSession()
     if (authError || !session) {
+      console.error("❌ Auth error documents:", authError)
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
     }
 
     console.log("✅ GET Documents session:", session.user.email)
 
     // Vérifier le rôle de l'utilisateur
-    const { data: userProfile } = await supabase
+    const { data: userProfile, error: profileError } = await supabase
       .from("users")
       .select("role")
       .eq("id", session.user.id)
       .single()
 
-    if (!userProfile) {
+    if (profileError || !userProfile) {
+      console.error("❌ Erreur profil utilisateur:", profileError)
       return NextResponse.json({ error: "Utilisateur non trouvé" }, { status: 404 })
     }
+
+    console.log("👤 Rôle utilisateur:", userProfile.role)
 
     let query = supabase
       .from("documents")
@@ -174,6 +180,7 @@ export async function GET(request: NextRequest) {
         type_fichier,
         is_public,
         statut,
+        user_id,
         created_at,
         users!user_id(name, email)
       `)
@@ -183,15 +190,17 @@ export async function GET(request: NextRequest) {
     if (userProfile.role === 'stagiaire' || userProfile.role === 'tuteur') {
       // Les stagiaires et tuteurs voient leurs documents + les documents publics
       query = query.or(`user_id.eq.${session.user.id},is_public.eq.true`)
+      console.log("🔒 Filtre appliqué pour:", userProfile.role)
+    } else {
+      console.log("🔓 Pas de filtre (admin/rh)")
     }
-    // Les admins et RH voient tous les documents (pas de filtre)
 
     const { data: documents, error } = await query
 
     if (error) {
       console.error("❌ Erreur récupération documents:", error)
       return NextResponse.json({ 
-        error: "Erreur lors de la récupération des documents" 
+        error: "Erreur lors de la récupération des documents: " + error.message 
       }, { status: 500 })
     }
 
@@ -205,7 +214,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("💥 Erreur GET documents:", error)
     return NextResponse.json({ 
-      error: "Erreur serveur" 
+      error: "Erreur serveur: " + error.message 
     }, { status: 500 })
   }
 }

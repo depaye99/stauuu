@@ -72,22 +72,41 @@ export default function RHDocumentsPage() {
 
   const loadDocuments = async () => {
     try {
-      const response = await fetch('/api/documents')
+      console.log("🔍 Chargement des documents...")
+      
+      const response = await fetch('/api/documents', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log("📋 Réponse documents:", response.status)
+      
       const result = await response.json()
+      console.log("📋 Données reçues:", result)
 
       if (!response.ok) {
+        console.error("❌ Erreur API documents:", result.error)
         throw new Error(result.error || "Erreur lors du chargement")
       }
 
-      setDocuments(result.data || [])
-      setFilteredDocuments(result.data || [])
+      const documentsData = result.data || []
+      console.log("✅ Documents chargés:", documentsData.length)
+      
+      setDocuments(documentsData)
+      setFilteredDocuments(documentsData)
     } catch (error) {
-      console.error("Erreur lors du chargement des documents:", error)
+      console.error("💥 Erreur lors du chargement des documents:", error)
       toast({
         title: "Erreur",
-        description: "Impossible de charger les documents",
+        description: "Impossible de charger les documents: " + error.message,
         variant: "destructive",
       })
+      // Définir un tableau vide en cas d'erreur
+      setDocuments([])
+      setFilteredDocuments([])
     }
   }
 
