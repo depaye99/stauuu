@@ -79,6 +79,8 @@ export default function RHGenererPage() {
 
     setGenerating(true)
     try {
+      console.log("🔄 Génération document:", { stagiaireId: selectedStagiaire, templateType: selectedTemplate })
+      
       const response = await fetch('/api/documents/generate', {
         method: 'POST',
         headers: {
@@ -91,6 +93,7 @@ export default function RHGenererPage() {
       })
 
       const result = await response.json()
+      console.log("📋 Résultat génération:", result)
 
       if (response.ok && result.success) {
         toast({
@@ -98,18 +101,23 @@ export default function RHGenererPage() {
           description: "Document généré avec succès",
         })
         
-        // Télécharger automatiquement le document
+        // Ouvrir le document dans un nouvel onglet
         if (result.downloadUrl) {
           window.open(result.downloadUrl, '_blank')
         }
+        
+        // Recharger la liste après génération
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
       } else {
         throw new Error(result.error || "Erreur lors de la génération")
       }
     } catch (error) {
-      console.error("Erreur génération:", error)
+      console.error("💥 Erreur génération:", error)
       toast({
         title: "Erreur",
-        description: "Impossible de générer le document",
+        description: "Impossible de générer le document: " + error.message,
         variant: "destructive",
       })
     } finally {

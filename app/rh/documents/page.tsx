@@ -73,7 +73,7 @@ export default function RHDocumentsPage() {
   const loadDocuments = async () => {
     try {
       console.log("🔍 Chargement des documents...")
-      
+
       const response = await fetch('/api/documents', {
         method: 'GET',
         credentials: 'include',
@@ -83,7 +83,7 @@ export default function RHDocumentsPage() {
       })
 
       console.log("📋 Réponse documents:", response.status)
-      
+
       const result = await response.json()
       console.log("📋 Données reçues:", result)
 
@@ -94,7 +94,7 @@ export default function RHDocumentsPage() {
 
       const documentsData = result.data || []
       console.log("✅ Documents chargés:", documentsData.length)
-      
+
       setDocuments(documentsData)
       setFilteredDocuments(documentsData)
     } catch (error) {
@@ -248,18 +248,6 @@ export default function RHDocumentsPage() {
               <Button className="w-full" onClick={() => router.push("/rh/documents/upload")}>
                 <Upload className="mr-2 h-4 w-4" />
                 Télécharger
-              </Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Archives</CardTitle>
-              <CardDescription>Consulter les documents archivés</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" variant="outline" onClick={() => router.push("/rh/documents/archives")}>
-                <FileText className="mr-2 h-4 w-4" />
-                Voir archives
               </Button>
             </CardContent>
           </Card>
