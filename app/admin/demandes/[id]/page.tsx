@@ -215,6 +215,50 @@ export default function DemandeDetailPage() {
     )
   }
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("fr-FR")
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes"
+    const k = 1024
+    const sizes = ["Bytes", "KB", "MB", "GB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+  }
+
+  const handleDownloadDocument2 = async (document: any) => {
+    try {
+      const response = await fetch(`/api/documents/${document.id}/download`)
+
+      if (!response.ok) {
+        throw new Error("Erreur lors du téléchargement")
+      }
+
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = window.document.createElement("a")
+      a.href = url
+      a.download = document.nom
+      window.document.body.appendChild(a)
+      a.click()
+      window.document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      toast({
+        title: "Succès",
+        description: "Document téléchargé avec succès",
+      })
+    } catch (error) {
+      console.error("Erreur téléchargement:", error)
+      toast({
+        title: "Erreur",
+        description: "Impossible de télécharger le document",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between">

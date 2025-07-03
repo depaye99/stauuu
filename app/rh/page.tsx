@@ -203,6 +203,19 @@ export default function RHDashboard() {
               </Button>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Documents</CardTitle>
+              <CardDescription>Gestion documentaire de la plateforme</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" onClick={() => router.push("/rh/documents")}>
+                <FileText className="mr-2 h-4 w-4" />
+                Gérer les documents
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>

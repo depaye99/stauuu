@@ -1,6 +1,6 @@
+
 import { NextRequest, NextResponse } from "next/server"
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
 import { z } from "zod"
 
 const createUserSchema = z.object({
@@ -17,17 +17,20 @@ const createUserSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createClient()
     
     // Vérifier que l'utilisateur actuel est admin
     const { data: { session } } = await supabase.auth.getSession()
     
     if (!session) {
+      console.error("❌ Pas de session")
       return NextResponse.json(
         { success: false, error: "Non authentifié" },
         { status: 401 }
       )
     }
+
+    console.log("✅ Session trouvée pour:", session.user.email)
 
     const { data: currentUser } = await supabase
       .from("users")
@@ -36,13 +39,18 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!currentUser || currentUser.role !== "admin") {
+      console.error("❌ Utilisateur non admin:", currentUser?.role)
       return NextResponse.json(
         { success: false, error: "Accès non autorisé" },
         { status: 403 }
       )
     }
+
+    console.log("✅ Utilisateur admin confirmé")
     
     const body = await request.json()
+    console.log("📝 Données reçues:", { ...body, password: "[HIDDEN]" })
+    
     const validatedData = createUserSchema.parse(body)
     
     // Vérifier si l'utilisateur existe déjà
@@ -59,22 +67,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Créer l'utilisateur avec un client admin
-    const adminSupabase = createRouteHandlerClient({ cookies })
-
-    const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
+    // Créer l'utilisateur dans auth.users d'abord
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: validatedData.email,
       password: validatedData.password,
       email_confirm: true,
       user_metadata: {
         name: validatedData.name,
-        role: validatedData.role,
-        created_by_admin: true
+        role: validatedData.role
       }
     })
 
     if (authError) {
-      console.error("Erreur création auth admin:", authError)
+      console.error("❌ Erreur création auth:", authError)
       return NextResponse.json(
         { success: false, error: "Erreur lors de la création du compte: " + authError.message },
         { status: 500 }
@@ -88,6 +93,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    console.log("✅ Utilisateur auth créé:", authData.user.id)
+
     // Créer le profil utilisateur
     const { data: newUser, error: profileError } = await supabase
       .from("users")
@@ -96,10 +103,10 @@ export async function POST(request: NextRequest) {
         email: validatedData.email,
         name: validatedData.name,
         role: validatedData.role,
-        phone: validatedData.phone,
-        department: validatedData.department,
-        position: validatedData.position,
-        address: validatedData.address,
+        phone: validatedData.phone || null,
+        department: validatedData.department || null,
+        position: validatedData.position || null,
+        address: validatedData.address || null,
         is_active: validatedData.is_active,
         email_confirmed: true,
         created_at: new Date().toISOString(),
@@ -109,13 +116,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (profileError) {
-      console.error("Erreur création profil:", profileError)
+      console.error("❌ Erreur création profil:", profileError)
       
       // Essayer de supprimer l'utilisateur auth créé
       try {
         await supabase.auth.admin.deleteUser(authData.user.id)
       } catch (deleteError) {
-        console.error("Erreur suppression utilisateur auth:", deleteError)
+        console.error("❌ Erreur suppression utilisateur auth:", deleteError)
       }
       
       return NextResponse.json(
@@ -123,6 +130,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    console.log("✅ Profil utilisateur créé:", newUser.id)
 
     // Si c'est un stagiaire, créer l'entrée dans la table stagiaires
     if (validatedData.role === "stagiaire") {
@@ -154,39 +163,25 @@ export async function POST(request: NextRequest) {
           tuteur_id: tuteurId,
           statut: "actif",
           date_debut: new Date().toISOString().split('T')[0],
-          date_fin: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 6 mois plus tard
+          date_fin: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-      } catch (stagiaireError) {
-        console.warn("Erreur création stagiaire:", stagiaireError)
-      }
-    }
 
-    // Créer une notification de bienvenue
-    try {
-      await supabase
-        .from("notifications")
-        .insert({
-          user_id: authData.user.id,
-          titre: "Compte créé par l'administrateur",
-          message: `Bienvenue ${validatedData.name} ! Votre compte a été créé par l'administrateur.`,
-          type: "info"
-        })
-    } catch (notifError) {
-      console.warn("Erreur création notification:", notifError)
+        console.log("✅ Entrée stagiaire créée")
+      } catch (stagiaireError) {
+        console.warn("⚠️ Erreur création stagiaire:", stagiaireError)
+      }
     }
 
     return NextResponse.json({
       success: true,
       message: "Utilisateur créé avec succès",
-      data: {
-        user: newUser
-      }
+      data: newUser
     })
 
   } catch (error) {
-    console.error("Erreur création utilisateur admin:", error)
+    console.error("💥 Erreur création utilisateur admin:", error)
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -204,17 +199,20 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createClient()
     
     // Vérifier que l'utilisateur actuel est admin
     const { data: { session } } = await supabase.auth.getSession()
     
     if (!session) {
+      console.error("❌ GET: Pas de session")
       return NextResponse.json(
         { success: false, error: "Non authentifié" },
         { status: 401 }
       )
     }
+
+    console.log("✅ GET: Session trouvée pour:", session.user.email)
 
     const { data: currentUser } = await supabase
       .from("users")
@@ -223,11 +221,14 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (!currentUser || currentUser.role !== "admin") {
+      console.error("❌ GET: Utilisateur non admin:", currentUser?.role)
       return NextResponse.json(
         { success: false, error: "Accès non autorisé" },
         { status: 403 }
       )
     }
+
+    console.log("✅ GET: Utilisateur admin confirmé")
 
     // Récupérer tous les utilisateurs
     const { data: users, error } = await supabase
@@ -236,8 +237,11 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
 
     if (error) {
+      console.error("❌ Erreur récupération utilisateurs:", error)
       throw error
     }
+
+    console.log("✅ Utilisateurs récupérés:", users.length)
 
     return NextResponse.json({
       success: true,
@@ -245,7 +249,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("Erreur récupération utilisateurs:", error)
+    console.error("💥 Erreur récupération utilisateurs:", error)
     return NextResponse.json(
       { success: false, error: "Erreur interne du serveur" },
       { status: 500 }

@@ -1,161 +1,211 @@
+
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function GET(request: NextRequest) {
-  try {
-    const supabase = createClient()
-
-    // Vérifier l'authentification
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('user_id')
-
-    // Récupérer le profil utilisateur
-    const { data: userProfile } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single()
-
-    let query = supabase
-      .from("documents")
-      .select(`
-        *,
-        users!inner(
-          id,
-          name,
-          email
-        )
-      `)
-      .order("created_at", { ascending: false })
-
-    // Filtrer selon les permissions
-    if (userProfile?.role === 'admin' || userProfile?.role === 'rh') {
-      // Admin et RH peuvent voir tous les documents
-      if (userId) {
-        query = query.eq("user_id", userId)
-      }
-    } else {
-      // Utilisateurs normaux ne voient que leurs documents ou les documents publics
-      query = query.or(`user_id.eq.${user.id},is_public.eq.true`)
-      if (userId && userId !== user.id) {
-        query = query.eq("is_public", true)
-      }
-    }
-
-    const { data: documents, error } = await query
-
-    if (error) {
-      console.error("Erreur lors de la récupération des documents:", error)
-      return NextResponse.json({ error: "Erreur lors de la récupération des documents" }, { status: 500 })
-    }
-
-    return NextResponse.json({ data: documents })
-
-  } catch (error) {
-    console.error("Erreur API documents:", error)
-    return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 })
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
-    // Vérifier l'authentification
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    if (authError || !session) {
+      console.error("❌ Auth error documents:", authError)
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
     }
 
+    console.log("✅ Session documents:", session.user.email)
+
     const formData = await request.formData()
-    const file = formData.get('file') as File
-    const nom = formData.get('nom') as string
-    const type = formData.get('type') as string
-    const description = formData.get('description') as string
-    const isPublic = formData.get('is_public') === 'true'
+    const file = formData.get("file") as File
+    const nom = formData.get("nom") as string
+    const type = formData.get("type") as string
+    const description = formData.get("description") as string
+    const isPublic = formData.get("is_public") === "true"
 
-    if (!file || !nom) {
-      return NextResponse.json({ error: "Fichier et nom requis" }, { status: 400 })
+    if (!file) {
+      return NextResponse.json({ error: "Aucun fichier fourni" }, { status: 400 })
     }
 
-    // Validation du fichier
-    const maxSize = 50 * 1024 * 1024 // 50MB
-    if (file.size > maxSize) {
-      return NextResponse.json({ error: "Fichier trop volumineux (max 50MB)" }, { status: 400 })
+    if (!nom) {
+      return NextResponse.json({ error: "Le nom du document est requis" }, { status: 400 })
     }
 
+    // Vérifier la taille du fichier (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: "Fichier trop volumineux (max 10MB)" }, { status: 400 })
+    }
+
+    // Types de fichiers autorisés
     const allowedTypes = [
       'application/pdf',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'image/jpeg',
       'image/png',
+      'image/jpg',
       'text/plain'
     ]
 
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: "Type de fichier non autorisé" }, { status: 400 })
+      return NextResponse.json({ 
+        error: "Type de fichier non autorisé. Formats acceptés : PDF, DOC, DOCX, JPG, PNG" 
+      }, { status: 400 })
     }
 
-    // Générer un nom unique pour le fichier
+    // Générer un nom de fichier sécurisé
     const timestamp = Date.now()
-    const fileName = `${user.id}/${timestamp}-${file.name}`
+    const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+    const fileName = `${timestamp}_${cleanFileName}`
+    const filePath = `documents/${session.user.id}/${fileName}`
 
-    // Upload vers Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(fileName, file, {
-        upsert: false,
-        contentType: file.type
+    console.log("📁 Upload fichier:", filePath)
+
+    try {
+      // Upload vers Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (uploadError) {
+        console.error("❌ Erreur upload storage:", uploadError)
+        return NextResponse.json({ 
+          error: "Erreur lors de l'upload: " + uploadError.message 
+        }, { status: 500 })
+      }
+
+      console.log("✅ Fichier uploadé:", uploadData.path)
+
+      // Obtenir l'URL publique
+      const { data: { publicUrl } } = supabase.storage
+        .from("documents")
+        .getPublicUrl(filePath)
+
+      // Sauvegarder en base
+      const { data: document, error: dbError } = await supabase
+        .from("documents")
+        .insert({
+          nom: nom,
+          type: type || "autre",
+          description: description || "",
+          chemin_fichier: filePath,
+          url: publicUrl,
+          taille: file.size,
+          type_fichier: file.type,
+          user_id: session.user.id,
+          statut: "approuve",
+          is_public: isPublic,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (dbError) {
+        console.error("❌ Erreur sauvegarde document:", dbError)
+        // Supprimer le fichier uploadé en cas d'erreur
+        await supabase.storage.from("documents").remove([filePath])
+        return NextResponse.json({ 
+          error: "Erreur lors de la sauvegarde: " + dbError.message 
+        }, { status: 500 })
+      }
+
+      console.log("✅ Document sauvegardé:", document.id)
+
+      return NextResponse.json({ 
+        success: true, 
+        data: { 
+          url: publicUrl,
+          id: document.id,
+          nom: document.nom,
+          type: document.type,
+          taille: document.taille
+        },
+        message: "Document uploadé avec succès"
       })
 
-    if (uploadError) {
-      console.error("Erreur upload storage:", uploadError)
-      return NextResponse.json({ error: "Erreur lors de l'upload du fichier" }, { status: 500 })
+    } catch (storageError) {
+      console.error("❌ Erreur storage:", storageError)
+      return NextResponse.json({ 
+        error: "Erreur lors de l'upload vers le stockage" 
+      }, { status: 500 })
     }
 
-    // Obtenir l'URL publique
-    const { data: urlData } = supabase.storage
-      .from('documents')
-      .getPublicUrl(fileName)
+  } catch (error: any) {
+    console.error("💥 Erreur upload document:", error)
+    return NextResponse.json({ 
+      error: "Erreur interne: " + error.message 
+    }, { status: 500 })
+  }
+}
 
-    // Enregistrer dans la base de données
-    const { data: document, error: dbError } = await supabase
-      .from('documents')
-      .insert({
-        nom,
-        type: type || 'autre',
-        description,
-        chemin_fichier: fileName,
-        url: urlData.publicUrl,
-        taille: file.size,
-        type_fichier: file.type,
-        user_id: user.id,
-        is_public: isPublic
-      })
-      .select()
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    if (authError || !session) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+    }
+
+    console.log("✅ GET Documents session:", session.user.email)
+
+    // Vérifier le rôle de l'utilisateur
+    const { data: userProfile } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", session.user.id)
       .single()
 
-    if (dbError) {
-      console.error("Erreur insertion DB:", dbError)
-      // Nettoyer le fichier uploadé en cas d'erreur
-      await supabase.storage.from('documents').remove([fileName])
-      return NextResponse.json({ error: "Erreur lors de l'enregistrement" }, { status: 500 })
+    if (!userProfile) {
+      return NextResponse.json({ error: "Utilisateur non trouvé" }, { status: 404 })
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      data: document,
-      message: "Document uploadé avec succès" 
+    let query = supabase
+      .from("documents")
+      .select(`
+        id,
+        nom,
+        type,
+        taille,
+        url,
+        chemin_fichier,
+        type_fichier,
+        is_public,
+        statut,
+        created_at,
+        users!user_id(name, email)
+      `)
+      .order("created_at", { ascending: false })
+
+    // Filtres selon le rôle
+    if (userProfile.role === 'stagiaire' || userProfile.role === 'tuteur') {
+      // Les stagiaires et tuteurs voient leurs documents + les documents publics
+      query = query.or(`user_id.eq.${session.user.id},is_public.eq.true`)
+    }
+    // Les admins et RH voient tous les documents (pas de filtre)
+
+    const { data: documents, error } = await query
+
+    if (error) {
+      console.error("❌ Erreur récupération documents:", error)
+      return NextResponse.json({ 
+        error: "Erreur lors de la récupération des documents" 
+      }, { status: 500 })
+    }
+
+    console.log("✅ Documents récupérés:", documents?.length || 0)
+
+    return NextResponse.json({
+      success: true,
+      data: documents || []
     })
 
-  } catch (error) {
-    console.error("Erreur API documents POST:", error)
-    return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 })
+  } catch (error: any) {
+    console.error("💥 Erreur GET documents:", error)
+    return NextResponse.json({ 
+      error: "Erreur serveur" 
+    }, { status: 500 })
   }
 }

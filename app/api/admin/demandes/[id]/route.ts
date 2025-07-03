@@ -1,3 +1,4 @@
+
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -6,9 +7,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const supabase = await createClient()
 
     // Vérifier l'authentification et les permissions
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+    const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
     }
@@ -19,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 })
     }
 
-    // Récupérer la demande avec relations
+    // Récupérer la demande avec relations et documents
     const { data: demande, error } = await supabase
       .from("demandes")
       .select(`
@@ -42,7 +41,34 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       throw error
     }
 
-    return NextResponse.json({ success: true, data: demande })
+    // Récupérer les documents associés à cette demande
+    const { data: documents, error: docsError } = await supabase
+      .from("documents")
+      .select(`
+        id,
+        nom,
+        type,
+        taille,
+        url,
+        chemin_fichier,
+        type_fichier,
+        created_at,
+        users!user_id(name, email)
+      `)
+      .eq("demande_id", params.id)
+      .order("created_at", { ascending: false })
+
+    if (docsError) {
+      console.warn("Erreur récupération documents:", docsError)
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      data: {
+        ...demande,
+        documents: documents || []
+      }
+    })
   } catch (error) {
     console.error("Erreur lors de la récupération de la demande:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })
@@ -54,9 +80,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const supabase = await createClient()
 
     // Vérifier l'authentification et les permissions
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+    const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
     }
