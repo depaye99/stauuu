@@ -23,7 +23,14 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("documents")
-      .select("*")
+      .select(`
+        *,
+        users!inner(
+          id,
+          name,
+          email
+        )
+      `)
       .order("created_at", { ascending: false })
 
     // Filtrer selon les permissions
