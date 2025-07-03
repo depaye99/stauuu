@@ -63,7 +63,6 @@ export async function GET() {
       success: false,
       error: "Erreur serveur interne",
       data: []
-    }, { status: 500 })ne"
-    })
+    }, { status: 500 })
   }
 }

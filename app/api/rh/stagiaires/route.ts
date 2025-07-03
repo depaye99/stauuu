@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { user_id, tuteur_id, entreprise, poste, date_debut, date_fin, notes } = body
-    
+
     // Validation
     if (!user_id) {
       return NextResponse.json({ error: "ID utilisateur requis" }, { status: 400 })

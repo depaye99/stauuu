@@ -1,14 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
+  experimental: {
+    esmExternals: false
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false
+  },
+  eslint: {
+    ignoreDuringBuilds: false
   },
   images: {
-    unoptimized: true,
+    domains: ['localhost']
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: '/api/:path*'
+      }
+    ]
+  }
 }
 
 export default nextConfig
